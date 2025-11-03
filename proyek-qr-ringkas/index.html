@@ -1,0 +1,32 @@
+// HAPUS fungsi 'fetchVisitorCount' (JSONP) yang lama
+// GANTI dengan fungsi di bawah ini:
+
+function fetchVisitorCount() {
+    const visitorCountEl = document.getElementById('visitor-count');
+    
+    // Ini adalah 'endpoint' baru Anda
+    // Netlify akan otomatis mengarahkan ini ke fungsi 'counter.js'
+    const NETLIFY_FUNCTION_URL = '/.netlify/functions/counter'; 
+
+    fetch(NETLIFY_FUNCTION_URL)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.count) {
+                visitorCountEl.textContent = data.count.toLocaleString('id-ID');
+            } else {
+                throw new Error('Format data tidak valid');
+            }
+        })
+        .catch(error => {
+            console.error('Gagal memuat API counter:', error);
+            visitorCountEl.textContent = 'N/A'; // Tampilkan N/A jika gagal
+        });
+}
+
+// ... sisa kode JavaScript Anda (loadHistory, switchTab, dll) ...
+// Pastikan fetchVisitorCount() tetap dipanggil di dalam window.addEventListener('load', ...)
