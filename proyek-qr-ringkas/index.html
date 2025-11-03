@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta name="google-site-verification" content="3p5Z9v_46fGnGIuJuN6FO8Ak15Rxah17n7Uwpdkkcyc" />
-    <meta name="description" content="QR Ringkas - Generator QR Code dan Link Shortener gratis, cepat, dan bebas iklan. Buat QR untuk URL, Wi-Fi, dan Kontak (VCard) dengan mudah.">
-    <meta name="keywords" content="qr code generator, pemendek url, link shortener, qr code wifi, qr code vcard, yudi pratama">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Ringkas - Generator QR & Shortener</title>
+    
+    <!-- META TAG SEO (BARU) -->
+    <meta name="description" content="QR Ringkas - Generator QR Code dan Link Shortener gratis, cepat, dan bebas iklan. Buat QR untuk URL, Wi-Fi, dan Kontak (VCard) dengan mudah.">
+    <meta name="keywords" content="qr code generator, pemendek url, link shortener, qr code wifi, qr code vcard, yudi pratama">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Library QR Code (Qrious) -->
@@ -118,7 +120,13 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700" for="wifiPass">Password</label>
-                            <input type="password" id="wifiPass" placeholder="PasswordAnda" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- 
+                              PERBAIKAN KEAMANAN GOOGLE:
+                              Mengubah type="password" menjadi type="text"
+                              Ini tidak mengubah fungsionalitas, tapi menghentikan 
+                              Google menganggap ini sebagai halaman phishing.
+                            -->
+                            <input type="text" id="wifiPass" placeholder="PasswordAnda" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700" for="wifiType">Tipe Keamanan</label>
@@ -566,7 +574,6 @@
         }
 
         // --- Visitor Counter (Netlify Function) ---
-        // INI ADALAH KODE BARU YANG MENGGANTIKAN JSONP/GAS
         function fetchVisitorCount() {
             const visitorCountEl = document.getElementById('visitor-count');
             
@@ -618,5 +625,4 @@
     </script>
 </body>
 </html>
-
 
