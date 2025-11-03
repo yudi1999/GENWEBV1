@@ -1,32 +1,617 @@
-// HAPUS fungsi 'fetchVisitorCount' (JSONP) yang lama
-// GANTI dengan fungsi di bawah ini:
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Ringkas - Generator QR & Shortener</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Library QR Code (Qrious) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Latar belakang lebih lembut */
+            background-image: linear-gradient(145deg, #e0e7ff 0%, #f0f4f8 100%);
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background-color: #3b82f6; /* Warna biru */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3), 0 2px 4px -2px rgba(59, 130, 246, 0.2);
+        }
+        .tab-btn:not(.active):hover {
+            background-color: #e0e7ff;
+        }
+        /* Ikon loading (spinner) */
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-function fetchVisitorCount() {
-    const visitorCountEl = document.getElementById('visitor-count');
-    
-    // Ini adalah 'endpoint' baru Anda
-    // Netlify akan otomatis mengarahkan ini ke fungsi 'counter.js'
-    const NETLIFY_FUNCTION_URL = '/.netlify/functions/counter'; 
+    <div class="w-full max-w-4xl mx-auto space-y-6">
 
-    fetch(NETLIFY_FUNCTION_URL)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+        <!-- Header -->
+        <header class="text-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">QR Ringkas</h1>
+            <p class="text-lg text-gray-600 mt-1">Generator QR Code & Link Shortener</p>
+        </header>
+
+        <!-- Catatan Keamanan -->
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg shadow-sm" role="alert">
+            <div class="flex">
+                <div class="py-1">
+                    <!-- Ikon Peringatan SVG -->
+                    <svg class="h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-bold">Catatan Keamanan</p>
+                    <p class="text-sm">Harap bijak dalam menggunakan alat ini. Jangan membuat QR code untuk link yang berbahaya (phishing) atau ilegal. Anda bertanggung jawab penuh atas link yang Anda sebarkan.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aplikasi Utama -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                
+                <!-- Kolom Kiri: Input Form -->
+                <div class="space-y-5">
+                    
+                    <!-- Pilihan Tab -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Tipe QR</label>
+                        <div class="flex space-x-2 bg-gray-100 p-1.5 rounded-lg">
+                            <button id="tab-text" onclick="switchTab('text')" class="tab-btn active w-full py-2 px-3 rounded-md text-sm font-semibold text-gray-700">Teks/URL</button>
+                            <button id="tab-wifi" onclick="switchTab('wifi')" class="tab-btn w-full py-2 px-3 rounded-md text-sm font-semibold text-gray-700">Wi-Fi</button>
+                            <button id="tab-vcard" onclick="switchTab('vcard')" class="tab-btn w-full py-2 px-3 rounded-md text-sm font-semibold text-gray-700">Kontak</button>
+                        </div>
+                    </div>
+
+                    <!-- Konten Tab -->
+                    <div id="tab-content-text" class="tab-content space-y-4">
+                        <label class="block text-sm font-medium text-gray-700" for="urlInput">URL atau Teks Anda</label>
+                        <div class="relative flex items-center">
+                            <input type="text" id="urlInput" placeholder="https://..." class="w-full p-3 pr-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Tombol Salin -->
+                            <button id="copyButton" title="Salin Link" class="absolute right-2 p-1.5 text-gray-400 hover:text-gray-700 rounded-md hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p id="shortenError" class="text-red-500 text-sm mt-1"></p>
+                        <button id="shortenButton" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-700 text-white rounded-lg shadow-md hover:bg-gray-800 transition duration-300 font-semibold text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+                            </svg>
+                            <span id="shortenText">Persingkat URL (Opsional)</span>
+                        </button>
+                    </div>
+
+                    <div id="tab-content-wifi" class="tab-content space-y-3 hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="wifiSSID">Nama Jaringan (SSID)</label>
+                            <input type="text" id="wifiSSID" placeholder="Nama_WiFi_Anda" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="wifiPass">Password</label>
+                            <input type="password" id="wifiPass" placeholder="PasswordAnda" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="wifiType">Tipe Keamanan</label>
+                            <select id="wifiType" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="WPA">WPA/WPA2</option>
+                                <option value="WEP">WEP</option>
+                                <option value="nopass">Tidak Ada</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="tab-content-vcard" class="tab-content space-y-3 hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="vcardNama">Nama Lengkap</label>
+                            <input type="text" id="vcardNama" placeholder="Yudi Pratama" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="vcardHP">Nomor HP</label>
+                            <input type="tel" id="vcardHP" placeholder="+628123456789" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" for="vcardEmail">Email</label>
+                            <input type="email" id="vcardEmail" placeholder="email@anda.com" class="mt-1 w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Kustomisasi Warna -->
+                    <div class="space-y-3 pt-2">
+                        <label class="block text-sm font-medium text-gray-700">Kustomisasi Warna (Opsional)</label>
+                        <div class="flex gap-4">
+                            <div class="w-full">
+                                <label for="colorFG" class="block text-xs text-gray-600">Warna Titik</label>
+                                <input type="color" id="colorFG" value="#000000" class="mt-1 w-full h-10 border-gray-300 rounded-lg shadow-sm cursor-pointer">
+                            </div>
+                            <div class="w-full">
+                                <label for="colorBG" class="block text-xs text-gray-600">Warna Latar</g>"</label>
+                                <input type="color" id="colorBG" value="#FFFFFF" class="mt-1 w-full h-10 border-gray-300 rounded-lg shadow-sm cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tombol Generate Utama -->
+                    <button id="generateButton" class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 font-bold text-base">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.05 5.05a7 7 0 119.9 9.9L10 10l4.95-4.95a7 7 0 010 9.9L10 10l-4.95 4.95a7 7 0 010-9.9zM10 10l4.95 4.95" />
+                        </svg>
+                        Buat QR Code
+                    </button>
+                    <p id="qrError" class="text-red-500 text-sm text-center"></p>
+
+                </div>
+
+                <!-- Kolom Kanan: Output QR -->
+                <div class="flex flex-col items-center justify-center bg-gray-50 p-6 rounded-lg min-h-[300px] lg:min-h-full">
+                    <div id="qrOutput" class="p-4 bg-white rounded-lg shadow-inner border border-gray-200">
+                        <canvas id="qrCanvas" class="w-48 h-48 md:w-56 md:h-56"></canvas>
+                    </div>
+                    <div id="qrPlaceholder" class="text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <p class="mt-2 text-sm font-medium">QR Code Anda akan tampil di sini</p>
+                    </div>
+                    <button id="downloadButton" class="hidden mt-4 w-full max-w-xs py-2.5 px-4 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition duration-300 font-semibold text-sm">
+                        Download QR Code
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bagian Riwayat -->
+        <div id="historySection" class="bg-white p-6 rounded-2xl shadow-xl hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Riwayat Terakhir</h2>
+                <button id="clearHistoryButton" class="text-sm text-red-500 hover:text-red-700 font-medium">Bersihkan Semua</button>
+            </div>
+            <div id="historyList" class="space-y-3">
+                <!-- Riwayat akan diisi oleh JavaScript -->
+            </div>
+            <p id="historyEmpty" class="text-center text-gray-500 text-sm py-4">Belum ada riwayat.</p>
+        </div>
+
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-600 text-sm mt-8 space-y-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Fitur Utama</h3>
+                <ul class="list-disc list-inside max-w-md mx-auto text-left text-gray-700 space-y-1">
+                    <li>Buat QR Code untuk Teks/URL, Wi-Fi, dan Kontak (VCard).</li>
+                    <li>Opsi pemendek URL (Shortener) gratis & bebas iklan.</li>
+                    <li>Kustomisasi warna latar & foreground QR code.</li>
+                    <li>Riwayat tersimpan di browser Anda (Local Storage).</li>
+                    <li>100% Statis, Aman, Cepat, dan menghargai privasi Anda.</li>
+                </ul>
+            </div>
+            <div>
+                <p class="font-medium">Dibuat oleh Yudi Pratama</p>
+                <p>Untuk support, silahkan follow <a href="https://www.instagram.com/yudilumiel99" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-semibold">@yudilumiel99</a></p>
+                <p class="mt-2">Total Kunjungan: <span id="visitor-count" class="font-bold">...</span></p>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Notifikasi/Pesan (Untuk Copy) -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300">
+        Tersalin ke clipboard!
+    </div>
+
+    <script>
+        // --- Variabel Global & Inisialisasi ---
+        let qrInstance = null;
+        let currentTab = 'text';
+        let history = [];
+        
+        // Elemen UI
+        const tabs = {
+            text: document.getElementById('tab-text'),
+            wifi: document.getElementById('tab-wifi'),
+            vcard: document.getElementById('tab-vcard')
+        };
+        const tabContents = {
+            text: document.getElementById('tab-content-text'),
+            wifi: document.getElementById('tab-content-wifi'),
+            vcard: document.getElementById('tab-content-vcard')
+        };
+        const urlInput = document.getElementById('urlInput');
+        const shortenButton = document.getElementById('shortenButton');
+        const shortenText = document.getElementById('shortenText');
+        const shortenError = document.getElementById('shortenError');
+        const generateButton = document.getElementById('generateButton');
+        const qrError = document.getElementById('qrError');
+        const qrOutput = document.getElementById('qrOutput');
+        const qrPlaceholder = document.getElementById('qrPlaceholder');
+        const qrCanvas = document.getElementById('qrCanvas');
+        const downloadButton = document.getElementById('downloadButton');
+        const colorFG = document.getElementById('colorFG');
+        const colorBG = document.getElementById('colorBG');
+        const copyButton = document.getElementById('copyButton');
+        const toast = document.getElementById('toast');
+
+        // Elemen Riwayat
+        const historySection = document.getElementById('historySection');
+        const historyList = document.getElementById('historyList');
+        const historyEmpty = document.getElementById('historyEmpty');
+        const clearHistoryButton = document.getElementById('clearHistoryButton');
+
+        // Elemen Tab Wi-Fi
+        const wifiSSID = document.getElementById('wifiSSID');
+        const wifiPass = document.getElementById('wifiPass');
+        const wifiType = document.getElementById('wifiType');
+
+        // Elemen Tab VCard
+        const vcardNama = document.getElementById('vcardNama');
+        const vcardHP = document.getElementById('vcardHP');
+        const vcardEmail = document.getElementById('vcardEmail');
+        
+        // --- Fungsi Tab ---
+        function switchTab(tabName) {
+            currentTab = tabName;
+            // Ganti tombol aktif
+            for (const key in tabs) {
+                tabs[key].classList.toggle('active', key === tabName);
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data && data.count) {
-                visitorCountEl.textContent = data.count.toLocaleString('id-ID');
-            } else {
-                throw new Error('Format data tidak valid');
+            // Tampilkan konten tab
+            for (const key in tabContents) {
+                tabContents[key].classList.toggle('hidden', key !== tabName);
             }
-        })
-        .catch(error => {
-            console.error('Gagal memuat API counter:', error);
-            visitorCountEl.textContent = 'N/A'; // Tampilkan N/A jika gagal
+            // Atur visibilitas tombol shortener
+            shortenButton.classList.toggle('hidden', tabName !== 'text');
+            copyButton.classList.toggle('hidden', tabName !== 'text' || urlInput.value.length === 0);
+        }
+
+        // --- Fungsi Link Shortener (TinyURL) ---
+        function resetShortenButton() {
+            shortenText.innerHTML = 'Persingkat URL (Opsional)';
+            shortenButton.disabled = false;
+            shortenButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        async function shortenUrl() {
+            const longUrl = urlInput.value;
+            if (!longUrl.startsWith('http://') && !longUrl.startsWith('https://')) {
+                shortenError.textContent = 'URL harus diawali dengan http:// atau https://';
+                return;
+            }
+            
+            shortenError.textContent = '';
+            shortenText.innerHTML = '<div class="loader"></div><span class="ml-2">Memperpendek...</span>';
+            shortenButton.disabled = true;
+            shortenButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+            try {
+                const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+                if (!response.ok) {
+                    throw new Error('Respon server tidak valid');
+                }
+                const shortUrl = await response.text();
+                
+                if (shortUrl === "Error") {
+                    throw new Error('API TinyURL mengembalikan error.');
+                }
+
+                urlInput.value = shortUrl;
+                copyButton.classList.remove('hidden');
+                resetShortenButton();
+                showToast('Link berhasil diperpendek!');
+
+            } catch (error) {
+                console.error('Shorten URL error:', error);
+                shortenError.textContent = 'Gagal memperpendek link. (Mungkin error jaringan)';
+                resetShortenButton();
+            }
+        }
+
+        // --- Fungsi QR Code ---
+        function getQrValue() {
+            qrError.textContent = '';
+            switch (currentTab) {
+                case 'text':
+                    return urlInput.value;
+                case 'wifi':
+                    if (!wifiSSID.value) {
+                        qrError.textContent = 'Nama Jaringan (SSID) tidak boleh kosong.';
+                        return null;
+                    }
+                    return `WIFI:T:${wifiType.value};S:${wifiSSID.value};P:${wifiPass.value};;`;
+                case 'vcard':
+                    if (!vcardNama.value && !vcardHP.value && !vcardEmail.value) {
+                        qrError.textContent = 'Isi minimal satu field (Nama, HP, atau Email).';
+                        return null;
+                    }
+                    return `BEGIN:VCARD\nVERSION:3.0\nN:${vcardNama.value}\nTEL:${vcardHP.value}\nEMAIL:${vcardEmail.value}\nEND:VCARD`;
+                default:
+                    return null;
+            }
+        }
+        
+        function generateQR() {
+            const value = getQrValue();
+
+            if (!value) {
+                qrError.textContent = qrError.textContent || 'Input tidak boleh kosong.';
+                qrOutput.classList.add('hidden');
+                qrPlaceholder.classList.remove('hidden');
+                downloadButton.classList.add('hidden');
+                return;
+            }
+
+            qrError.textContent = '';
+            qrPlaceholder.classList.add('hidden');
+            qrOutput.classList.remove('hidden');
+            downloadButton.classList.remove('hidden');
+
+            qrInstance = new QRious({
+                element: qrCanvas,
+                value: value,
+                size: 256,
+                padding: 16,
+                level: 'H',
+                foreground: colorFG.value,
+                background: colorBG.value
+            });
+
+            // Simpan ke riwayat
+            saveToHistory(value, currentTab);
+        }
+
+        function downloadQR() {
+            if (!qrInstance) return;
+            const link = document.createElement('a');
+            link.href = qrCanvas.toDataURL('image/png');
+            link.download = 'qr-ringkas.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- Fungsi Utilitas (Copy & Toast) ---
+        function copyUrl() {
+            if (!urlInput.value) return;
+            // Trik untuk menyalin di dalam iframe
+            const textarea = document.createElement('textarea');
+            textarea.value = urlInput.value;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = 0;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Tersalin ke clipboard!');
+            } catch (err) {
+                console.error('Gagal menyalin:', err);
+                showToast('Gagal menyalin.');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 2000);
+        }
+
+        // --- Fungsi Riwayat (History) ---
+        function loadHistory() {
+            try {
+                history = JSON.parse(localStorage.getItem('qrRingkasHistory')) || [];
+                historyList.innerHTML = ''; // Bersihkan list
+                if (history.length === 0) {
+                    historySection.classList.add('hidden');
+                    historyEmpty.classList.remove('hidden');
+                } else {
+                    historySection.classList.remove('hidden');
+                    historyEmpty.classList.add('hidden');
+                    history.forEach(item => renderHistoryItem(item));
+                }
+            } catch (error) {
+                console.error('Gagal memuat riwayat:', error);
+                history = [];
+            }
+        }
+
+        function saveToHistory(value, type) {
+            try {
+                const timestamp = new Date().getTime();
+                const newItem = {
+                    id: timestamp,
+                    value: value,
+                    type: type,
+                    // Ambil data form spesifik
+                    formData: getFormData(),
+                    // Simpan gambar QR sebagai Data URL
+                    qrDataUrl: qrCanvas.toDataURL() 
+                };
+
+                // Hapus duplikat berdasarkan 'value'
+                history = history.filter(item => item.value !== value);
+                
+                // Tambah di awal
+                history.unshift(newItem);
+                
+                // Batasi hanya 5 item
+                if (history.length > 5) {
+                    history = history.slice(0, 5);
+                }
+                
+                localStorage.setItem('qrRingkasHistory', JSON.stringify(history));
+                loadHistory(); // Muat ulang tampilan riwayat
+            } catch (error) {
+                console.error('Gagal menyimpan riwayat:', error);
+            }
+        }
+        
+        function getFormData() {
+            switch (currentTab) {
+                case 'text': return { urlInput: urlInput.value };
+                case 'wifi': return { wifiSSID: wifiSSID.value, wifiPass: wifiPass.value, wifiType: wifiType.value };
+                case 'vcard': return { vcardNama: vcardNama.value, vcardHP: vcardHP.value, vcardEmail: vcardEmail.value };
+                default: return {};
+            }
+        }
+
+        function renderHistoryItem(item) {
+            let title = '';
+            let subtitle = '';
+
+            switch (item.type) {
+                case 'text':
+                    title = 'Teks/URL';
+                    subtitle = item.value.length > 50 ? item.value.substring(0, 50) + '...' : item.value;
+                    break;
+                case 'wifi':
+                    title = 'Wi-Fi';
+                    subtitle = `SSID: ${item.formData.wifiSSID}`;
+                    break;
+                case 'vcard':
+                    title = 'Kontak';
+                    subtitle = `Nama: ${item.formData.vcardNama || 'N/A'}`;
+                    break;
+            }
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200';
+            itemEl.innerHTML = `
+                <img src="${item.qrDataUrl}" alt="QR Code History" class="w-12 h-12 rounded-md border bg-white">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-800 truncate">${title}</p>
+                    <p class="text-xs text-gray-600 truncate">${subtitle}</p>
+                </div>
+                <button onclick="useHistory(${item.id})" class="text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1">Gunakan</button>
+                <button onclick="deleteHistoryItem(${item.id})" class="text-red-500 hover:text-red-700 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            `;
+            historyList.appendChild(itemEl);
+        }
+        
+        function useHistory(id) {
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+
+            // Pindah tab
+            switchTab(item.type);
+
+            // Isi form
+            switch (item.type) {
+                case 'text':
+                    urlInput.value = item.formData.urlInput || '';
+                    break;
+                case 'wifi':
+                    wifiSSID.value = item.formData.wifiSSID || '';
+                    wifiPass.value = item.formData.wifiPass || '';
+                    wifiType.value = item.formData.wifiType || 'WPA';
+                    break;
+                case 'vcard':
+                    vcardNama.value = item.formData.vcardNama || '';
+                    vcardHP.value = item.formData.vcardHP || '';
+                    vcardEmail.value = item.formData.vcardEmail || '';
+                    break;
+            }
+            
+            // Generate QR-nya
+            generateQR();
+            
+            // Scroll ke atas
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteHistoryItem(id) {
+            history = history.filter(h => h.id !== id);
+            localStorage.setItem('qrRingkasHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        function clearHistory() {
+            history = [];
+            localStorage.removeItem('qrRingkasHistory');
+            loadHistory();
+        }
+
+        // --- Visitor Counter (Netlify Function) ---
+        // INI ADALAH KODE BARU YANG MENGGANTIKAN JSONP/GAS
+        function fetchVisitorCount() {
+            const visitorCountEl = document.getElementById('visitor-count');
+            
+            // Ini adalah 'endpoint' baru Anda
+            // Netlify akan otomatis mengarahkan ini ke fungsi 'counter.js'
+            const NETLIFY_FUNCTION_URL = '/.netlify/functions/counter'; 
+
+            fetch(NETLIFY_FUNCTION_URL)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.count) {
+                        visitorCountEl.textContent = data.count.toLocaleString('id-ID');
+                    } else {
+                        throw new Error('Format data tidak valid');
+                    }
+                })
+                .catch(error => {
+                    console.error('Gagal memuat API counter:', error);
+                    visitorCountEl.textContent = 'N/A'; // Tampilkan N/A jika gagal
+                });
+        }
+
+
+        // --- Event Listeners ---
+        window.addEventListener('load', () => {
+            // Setup Tombol
+            shortenButton.addEventListener('click', shortenUrl);
+            generateButton.addEventListener('click', generateQR);
+            downloadButton.addEventListener('click', downloadQR);
+            copyButton.addEventListener('click', copyUrl);
+            clearHistoryButton.addEventListener('click', clearHistory);
+            
+            // Tampilkan/sembunyikan tombol salin berdasarkan input
+            urlInput.addEventListener('input', () => {
+                copyButton.classList.toggle('hidden', urlInput.value.length === 0);
+            });
+
+            // Inisialisasi awal
+            switchTab('text');
+            loadHistory();
+            fetchVisitorCount(); // Panggil visitor counter BARU saat halaman dimuat
         });
-}
 
-// ... sisa kode JavaScript Anda (loadHistory, switchTab, dll) ...
-// Pastikan fetchVisitorCount() tetap dipanggil di dalam window.addEventListener('load', ...)
+    </script>
+</body>
+</html>
